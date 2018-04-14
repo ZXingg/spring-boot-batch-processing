@@ -1,14 +1,13 @@
 package hello;
 
-import javax.sql.DataSource;
-
 import org.springframework.batch.core.Job;
-import org.springframework.batch.core.JobExecutionListener;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
 import org.springframework.batch.item.file.FlatFileItemReader;
@@ -16,10 +15,10 @@ import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 @Configuration
 @EnableBatchProcessing
@@ -32,13 +31,14 @@ public class BatchConfiguration {
     public StepBuilderFactory stepBuilderFactory;
 
     @Autowired
-    public DataSource dataSource;
+    public org.apache.tomcat.jdbc.pool.DataSource dataSource;
 
     // tag::readerwriterprocessor[]
     @Bean
-    public FlatFileItemReader<Person> reader() {
+    @StepScope//
+    public FlatFileItemReader<Person> reader(@Value("#{jobParameters['input.file.name']}")String file) {
         FlatFileItemReader<Person> reader = new FlatFileItemReader<Person>();
-        reader.setResource(new ClassPathResource("sample-data.csv"));
+        reader.setResource(new ClassPathResource(file));
         reader.setLineMapper(new DefaultLineMapper<Person>() {{
             setLineTokenizer(new DelimitedLineTokenizer() {{
                 setNames(new String[] { "firstName", "lastName" });
@@ -67,20 +67,20 @@ public class BatchConfiguration {
 
     // tag::jobstep[]
     @Bean
-    public Job importUserJob(JobCompletionNotificationListener listener) {
+    public Job importUserJob(JobCompletionNotificationListener listener,ItemReader<Person> reader) {
         return jobBuilderFactory.get("importUserJob")
                 .incrementer(new RunIdIncrementer())
                 .listener(listener)
-                .flow(step1())
+                .flow(step1(reader))
                 .end()
                 .build();
     }
 
     @Bean
-    public Step step1() {
+    public Step step1(ItemReader<Person> reader) {
         return stepBuilderFactory.get("step1")
-                .<Person, Person> chunk(10)
-                .reader(reader())
+                .<Person, Person> chunk(10)//批处理每次处理10条数据
+                .reader(reader)
                 .processor(processor())
                 .writer(writer())
                 .build();

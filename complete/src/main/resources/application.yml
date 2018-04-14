@@ -1,0 +1,11 @@
+server:
+  port: 80
+spring:
+  datasource:
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/test
+    username: root
+    password: z101496x
+  batch:
+    job:
+      enabled: false   #controller手动触发  true时自动触发

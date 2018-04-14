@@ -25,6 +25,7 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 dependencies {
+    compile("javax.batch:javax.batch-api:1.0")//添加
     compile("org.springframework.boot:spring-boot-starter-batch")
     compile("org.hsqldb:hsqldb")
     testCompile("junit:junit")
